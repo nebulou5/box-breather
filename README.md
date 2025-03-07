@@ -38,6 +38,8 @@ The script can be run with command-line arguments or a config file. The circle m
 
 ### Config File Usage
 
+![Alt text](box_breather_style.png)
+
 Create a text file (e.g., `config.txt`) with one option per line in `key=value` format. Example:
 
 `leg1_time=1`  

@@ -1,0 +1,55 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.sublime-workspace
+
+# Unit test / coverage reports
+.coverage
+*.cover
+*.py,cover
+.hypothesis/
+
+# PEP 582 (used by some package managers)
+__pypackages__/
+
+# MyPy and other type hinting
+.mypy_cache/
+
+# Linter and formatter caches
+.pylint.d/
+.pytest_cache/
+.tox/
+.cache/
+*.mypy_cache/
+
+# Environment variables / secrets
+.env
+.env.local
+*.secret
+secrets.json
+
+# Ignore all .txt files (to keep config files from being committed)
+*.txt
+

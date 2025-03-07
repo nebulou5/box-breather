@@ -2,6 +2,8 @@
 
 A Python script that animates a circle moving around a box with customizable parameters, built using Pygame.
 
+![Alt text](box_breather.png)
+
 ## Installation
 
 1. **Clone the Repository**

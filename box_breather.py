@@ -6,7 +6,7 @@ import argparse
 pygame.init()
 
 # Argument parsing with config file support
-parser = argparse.ArgumentParser(description="Circle Animation Script")
+parser = argparse.ArgumentParser(description="Box Breather")
 parser.add_argument("times", nargs="*", type=int, help="Animation times (1, 2, or 4 integers)")
 parser.add_argument("--config", type=str, help="Path to config file")
 args = parser.parse_args()
@@ -98,7 +98,7 @@ RESIZE_SPEED = 0.1
 
 # Set up the display
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
-pygame.display.set_caption("Circle Animation")
+pygame.display.set_caption("Box Breather")
 clock = pygame.time.Clock()
 
 def get_box_dimensions(current_size):

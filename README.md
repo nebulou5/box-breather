@@ -1,6 +1,6 @@
 # Box Breather
 
-A Python script that animates a circle moving around a box with customizable parameters, built using Pygame.
+A Python script that animates a circle moving around a box with customizable parameters, built using Pygame. Suitable for box breathing or other breathing exercises where you breathe, hold, exhale, hold for set durations.
 
 ![Alt text](box_breather.png)
 

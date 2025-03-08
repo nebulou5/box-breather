@@ -14,13 +14,17 @@ args = parser.parse_args()
 # Default values
 LEG1_TIME = LEG2_TIME = LEG3_TIME = LEG4_TIME = 2
 BACKGROUND_COLOR = (255, 255, 255)  # White
-BOX_COLOR = (0, 0, 0)              # Black
-CIRCLE_COLOR = (255, 0, 0)         # Red
+BOX_COLOR = (0, 0, 0)               # Black
+CIRCLE_COLOR = (255, 0, 0)          # Red
 BOX_WIDTH_PERCENT = 0.5
 BOX_HEIGHT_PERCENT = 0.5
 BOX_THICKNESS = 2
 CIRCLE_START_RADIUS = 20.0
 CIRCLE_END_RADIUS = CIRCLE_START_RADIUS * 3
+
+# New optional parameter for text rendering inside the circle.
+# It can be either False, True, or an RGB tuple.
+DISPLAY_TEXT = False
 
 # Load from config file if specified
 if args.config:
@@ -58,6 +62,22 @@ if args.config:
                     CIRCLE_START_RADIUS = float(value)
                 elif key == 'circle_end_radius':
                     CIRCLE_END_RADIUS = float(value)
+                elif key == 'display_text':
+                    # Accept "false", "true", or an RGB value like "255,255,0"
+                    if value.lower() == 'false':
+                        DISPLAY_TEXT = False
+                    elif value.lower() == 'true':
+                        DISPLAY_TEXT = True
+                    else:
+                        try:
+                            rgb = tuple(map(int, value.split(',')))
+                            if len(rgb) == 3:
+                                DISPLAY_TEXT = rgb
+                            else:
+                                raise ValueError("RGB must have 3 values")
+                        except Exception as e:
+                            print("Invalid display_text configuration value. Expected 'true', 'false', or an RGB value.")
+                            sys.exit(1)
     except Exception as e:
         print(f"Error reading config file: {e}")
         sys.exit(1)
@@ -110,7 +130,6 @@ def get_box_dimensions(current_size):
 
 def get_circle_position_and_radius(frame, box_x, box_y, box_width, box_height):
     current_frame = frame % TOTAL_CYCLE
-    
     start_x = box_x
     start_y = box_y
     
@@ -165,9 +184,35 @@ while running:
     )
     pygame.draw.circle(screen, CIRCLE_COLOR, (circle_x, circle_y), circle_radius)
 
+    # If display_text is enabled (True or an RGB tuple), render the remaining duration text
+    if DISPLAY_TEXT:
+        # Determine text color: use BOX_COLOR if DISPLAY_TEXT is True, otherwise use the RGB tuple
+        text_color = BOX_COLOR if DISPLAY_TEXT is True else DISPLAY_TEXT
+        
+        # Compute the remaining frames and seconds for the current leg.
+        current_cycle_frame = frame % TOTAL_CYCLE
+        if current_cycle_frame < FRAME_TIME1:
+            remaining_frames = FRAME_TIME1 - current_cycle_frame
+        elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2:
+            remaining_frames = FRAME_TIME1 + FRAME_TIME2 - current_cycle_frame
+        elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3:
+            remaining_frames = FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3 - current_cycle_frame
+        else:
+            remaining_frames = TOTAL_CYCLE - current_cycle_frame
+        remaining_seconds = round(remaining_frames / FPS)
+        
+        # Dynamically determine the font size as 0.66 of the current circle radius (with a minimum font size)
+        dynamic_font_size = max(10, int(circle_radius * 1.5))
+        # Use pygame.font.Font to force a new font object each frame with the new size.
+        font = pygame.font.Font(None, dynamic_font_size)
+        text_surface = font.render(str(remaining_seconds), True, text_color)
+        text_rect = text_surface.get_rect(center=(circle_x, circle_y))
+        screen.blit(text_surface, text_rect)
+
     pygame.display.flip()
     frame += 1
     clock.tick(FPS)
 
 pygame.quit()
 sys.exit(0)
+

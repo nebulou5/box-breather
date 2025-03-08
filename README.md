@@ -54,6 +54,8 @@ Create a text file (e.g., `config.txt`) with one option per line in `key=value` 
 `box_thickness=2`  
 `circle_start_radius=20.0`  
 `circle_end_radius=60.0`
+`display_text=true`
+
 
 Run with: `python box_breather.py --config=config.txt`.
 
@@ -71,6 +73,10 @@ Run with: `python box_breather.py --config=config.txt`.
 - `box_thickness`: Box outline thickness in pixels
 - `circle_start_radius`: Initial circle radius (float)
 - `circle_end_radius`: Maximum circle radius (float)
+- `display_text:` Controls the display of remaining duration text inside the circle.
+  - Set to `false` (or omit) for no text (default behavior).
+  - Set to `true` to display the remaining time in seconds using the box color.
+  - Alternatively, set to an RGB tuple (e.g., `0,255,0`) to use a custom color for the text.
 
 ### Notes
 

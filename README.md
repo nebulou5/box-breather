@@ -53,9 +53,8 @@ Create a text file (e.g., `config.txt`) with one option per line in `key=value` 
 `box_height_percent=0.5`  
 `box_thickness=2`  
 `circle_start_radius=20.0`  
-`circle_end_radius=60.0`
+`circle_end_radius=60.0`  
 `display_text=true`
-
 
 Run with: `python box_breather.py --config=config.txt`.
 

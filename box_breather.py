@@ -129,31 +129,35 @@ def get_box_dimensions(current_size):
     return box_x, box_y, box_width, box_height
 
 def get_circle_position_and_radius(frame, box_x, box_y, box_width, box_height):
+    # Compute the inset offset so the circle follows the center of the box's border
+    offset = BOX_THICKNESS / 2
     current_frame = frame % TOTAL_CYCLE
-    start_x = box_x
-    start_y = box_y
-    
+
     if current_frame < FRAME_TIME1:
+        # Top horizontal: move from left+offset to right-offset at a constant y position
         t = current_frame / FRAME_TIME1
-        x = start_x + (box_width * t)
-        y = start_y
+        x = box_x + offset + (box_width - 2 * offset) * t
+        y = box_y + offset
         radius = CIRCLE_START_RADIUS + (CIRCLE_END_RADIUS - CIRCLE_START_RADIUS) * t
     elif current_frame < FRAME_TIME1 + FRAME_TIME2:
+        # Right vertical: move from top+offset to bottom-offset at constant x position
         t = (current_frame - FRAME_TIME1) / FRAME_TIME2
-        x = start_x + box_width
-        y = start_y + (box_height * t)
+        x = box_x + box_width - offset
+        y = box_y + offset + (box_height - 2 * offset) * t
         radius = CIRCLE_END_RADIUS
     elif current_frame < FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3:
+        # Bottom horizontal: move from right-offset to left+offset at constant y position
         t = (current_frame - FRAME_TIME1 - FRAME_TIME2) / FRAME_TIME3
-        x = start_x + box_width - (box_width * t)
-        y = start_y + box_height
+        x = box_x + box_width - offset - (box_width - 2 * offset) * t
+        y = box_y + box_height - offset
         radius = CIRCLE_END_RADIUS - (CIRCLE_END_RADIUS - CIRCLE_START_RADIUS) * t
     else:
+        # Left vertical: move from bottom-offset to top+offset at constant x position
         t = (current_frame - FRAME_TIME1 - FRAME_TIME2 - FRAME_TIME3) / FRAME_TIME4
-        x = start_x
-        y = start_y + box_height - (box_height * t)
+        x = box_x + offset
+        y = box_y + box_height - offset - (box_height - 2 * offset) * t
         radius = CIRCLE_START_RADIUS
-    
+
     return int(x), int(y), radius
 
 # Main game loop
@@ -201,9 +205,8 @@ while running:
             remaining_frames = TOTAL_CYCLE - current_cycle_frame
         remaining_seconds = round(remaining_frames / FPS)
         
-        # Dynamically determine the font size as 0.66 of the current circle radius (with a minimum font size)
-        dynamic_font_size = max(10, int(circle_radius * 1.5))
-        # Use pygame.font.Font to force a new font object each frame with the new size.
+        # Dynamically determine the font size as 1.2 of the current circle radius (with a minimum font size)
+        dynamic_font_size = max(10, int(circle_radius * 1.2))
         font = pygame.font.Font(None, dynamic_font_size)
         text_surface = font.render(str(remaining_seconds), True, text_color)
         text_rect = text_surface.get_rect(center=(circle_x, circle_y))

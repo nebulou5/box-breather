@@ -21,10 +21,18 @@ BOX_HEIGHT_PERCENT = 0.5
 BOX_THICKNESS = 2
 CIRCLE_START_RADIUS = 20.0
 CIRCLE_END_RADIUS = CIRCLE_START_RADIUS * 3
-
-# New optional parameter for text rendering inside the circle.
-# It can be either False, True, or an RGB tuple.
 DISPLAY_TEXT = False
+TIMER_DURATION = 300  # Default 5:00 (300 seconds)
+TIMER_COLOR = (0, 0, 0)  # Black
+
+# Function to convert mm:ss to seconds
+def parse_time_string(time_str):
+    try:
+        minutes, seconds = map(int, time_str.split(':'))
+        return minutes * 60 + seconds
+    except ValueError:
+        print(f"Invalid timer format: {time_str}. Expected mm:ss")
+        sys.exit(1)
 
 # Load from config file if specified
 if args.config:
@@ -63,7 +71,6 @@ if args.config:
                 elif key == 'circle_end_radius':
                     CIRCLE_END_RADIUS = float(value)
                 elif key == 'display_text':
-                    # Accept "false", "true", or an RGB value like "255,255,0"
                     if value.lower() == 'false':
                         DISPLAY_TEXT = False
                     elif value.lower() == 'true':
@@ -78,6 +85,10 @@ if args.config:
                         except Exception as e:
                             print("Invalid display_text configuration value. Expected 'true', 'false', or an RGB value.")
                             sys.exit(1)
+                elif key == 'timer_duration':
+                    TIMER_DURATION = parse_time_string(value)
+                elif key == 'timer_color':
+                    TIMER_COLOR = tuple(map(int, value.split(',')))
     except Exception as e:
         print(f"Error reading config file: {e}")
         sys.exit(1)
@@ -115,6 +126,7 @@ FRAME_TIME3 = LEG3_TIME * FPS
 FRAME_TIME4 = LEG4_TIME * FPS
 TOTAL_CYCLE = FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3 + FRAME_TIME4
 RESIZE_SPEED = 0.1
+TOTAL_TIMER_FRAMES = TIMER_DURATION * FPS
 
 # Set up the display
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
@@ -129,30 +141,25 @@ def get_box_dimensions(current_size):
     return box_x, box_y, box_width, box_height
 
 def get_circle_position_and_radius(frame, box_x, box_y, box_width, box_height):
-    # Compute the inset offset so the circle follows the center of the box's border
     offset = BOX_THICKNESS / 2
     current_frame = frame % TOTAL_CYCLE
 
     if current_frame < FRAME_TIME1:
-        # Top horizontal: move from left+offset to right-offset at a constant y position
         t = current_frame / FRAME_TIME1
         x = box_x + offset + (box_width - 2 * offset) * t
         y = box_y + offset
         radius = CIRCLE_START_RADIUS + (CIRCLE_END_RADIUS - CIRCLE_START_RADIUS) * t
     elif current_frame < FRAME_TIME1 + FRAME_TIME2:
-        # Right vertical: move from top+offset to bottom-offset at constant x position
         t = (current_frame - FRAME_TIME1) / FRAME_TIME2
         x = box_x + box_width - offset
         y = box_y + offset + (box_height - 2 * offset) * t
         radius = CIRCLE_END_RADIUS
     elif current_frame < FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3:
-        # Bottom horizontal: move from right-offset to left+offset at constant y position
         t = (current_frame - FRAME_TIME1 - FRAME_TIME2) / FRAME_TIME3
         x = box_x + box_width - offset - (box_width - 2 * offset) * t
         y = box_y + box_height - offset
         radius = CIRCLE_END_RADIUS - (CIRCLE_END_RADIUS - CIRCLE_START_RADIUS) * t
     else:
-        # Left vertical: move from bottom-offset to top+offset at constant x position
         t = (current_frame - FRAME_TIME1 - FRAME_TIME2 - FRAME_TIME3) / FRAME_TIME4
         x = box_x + offset
         y = box_y + box_height - offset - (box_height - 2 * offset) * t
@@ -163,6 +170,8 @@ def get_circle_position_and_radius(frame, box_x, box_y, box_width, box_height):
 # Main game loop
 running = True
 frame = 0
+font = pygame.font.Font(None, 36)
+timer_complete = False
 
 while running:
     for event in pygame.event.get():
@@ -171,6 +180,12 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
+            elif timer_complete:
+                if event.key == pygame.K_r:  # Restart
+                    frame = 0
+                    timer_complete = False
+                elif event.key == pygame.K_q:  # Quit
+                    running = False
         elif event.type == pygame.VIDEORESIZE:
             TARGET_WIDTH, TARGET_HEIGHT = event.size
             screen = pygame.display.set_mode((TARGET_WIDTH, TARGET_HEIGHT), pygame.RESIZABLE)
@@ -178,44 +193,60 @@ while running:
     CURRENT_WIDTH += (TARGET_WIDTH - CURRENT_WIDTH) * RESIZE_SPEED
     CURRENT_HEIGHT += (TARGET_HEIGHT - CURRENT_HEIGHT) * RESIZE_SPEED
 
-    box_x, box_y, box_width, box_height = get_box_dimensions((CURRENT_WIDTH, CURRENT_HEIGHT))
-
     screen.fill(BACKGROUND_COLOR)
-    pygame.draw.rect(screen, BOX_COLOR, (box_x, box_y, box_width, box_height), BOX_THICKNESS)
 
-    circle_x, circle_y, circle_radius = get_circle_position_and_radius(
-        frame, box_x, box_y, box_width, box_height
-    )
-    pygame.draw.circle(screen, CIRCLE_COLOR, (circle_x, circle_y), circle_radius)
+    if not timer_complete:
+        box_x, box_y, box_width, box_height = get_box_dimensions((CURRENT_WIDTH, CURRENT_HEIGHT))
+        pygame.draw.rect(screen, BOX_COLOR, (box_x, box_y, box_width, box_height), BOX_THICKNESS)
 
-    # If display_text is enabled (True or an RGB tuple), render the remaining duration text
-    if DISPLAY_TEXT:
-        # Determine text color: use BOX_COLOR if DISPLAY_TEXT is True, otherwise use the RGB tuple
-        text_color = BOX_COLOR if DISPLAY_TEXT is True else DISPLAY_TEXT
-        
-        # Compute the remaining frames and seconds for the current leg.
-        current_cycle_frame = frame % TOTAL_CYCLE
-        if current_cycle_frame < FRAME_TIME1:
-            remaining_frames = FRAME_TIME1 - current_cycle_frame
-        elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2:
-            remaining_frames = FRAME_TIME1 + FRAME_TIME2 - current_cycle_frame
-        elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3:
-            remaining_frames = FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3 - current_cycle_frame
+        circle_x, circle_y, circle_radius = get_circle_position_and_radius(
+            frame, box_x, box_y, box_width, box_height
+        )
+        pygame.draw.circle(screen, CIRCLE_COLOR, (circle_x, circle_y), circle_radius)
+
+        # Display timer
+        remaining_frames = max(0, TOTAL_TIMER_FRAMES - frame)
+        remaining_seconds = remaining_frames // FPS
+        minutes = remaining_seconds // 60
+        seconds = remaining_seconds % 60
+        timer_text = f"{minutes:02d}:{seconds:02d}"
+        timer_surface = font.render(timer_text, True, TIMER_COLOR)
+        timer_rect = timer_surface.get_rect(center=(CURRENT_WIDTH // 2, 20))
+        screen.blit(timer_surface, timer_rect)
+
+        # Existing circle text display (if enabled)
+        if DISPLAY_TEXT:
+            text_color = BOX_COLOR if DISPLAY_TEXT is True else DISPLAY_TEXT
+            current_cycle_frame = frame % TOTAL_CYCLE
+            if current_cycle_frame < FRAME_TIME1:
+                remaining_frames = FRAME_TIME1 - current_cycle_frame
+            elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2:
+                remaining_frames = FRAME_TIME1 + FRAME_TIME2 - current_cycle_frame
+            elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3:
+                remaining_frames = FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3 - current_cycle_frame
+            else:
+                remaining_frames = TOTAL_CYCLE - current_cycle_frame
+            remaining_seconds = round(remaining_frames / FPS)
+            
+            dynamic_font_size = max(10, int(circle_radius * 1.2))
+            circle_font = pygame.font.Font(None, dynamic_font_size)
+            text_surface = circle_font.render(str(remaining_seconds), True, text_color)
+            text_rect = text_surface.get_rect(center=(circle_x, circle_y))
+            screen.blit(text_surface, text_rect)
+
+        if remaining_frames <= 0:
+            timer_complete = True
         else:
-            remaining_frames = TOTAL_CYCLE - current_cycle_frame
-        remaining_seconds = round(remaining_frames / FPS)
-        
-        # Dynamically determine the font size as 1.2 of the current circle radius (with a minimum font size)
-        dynamic_font_size = max(10, int(circle_radius * 1.2))
-        font = pygame.font.Font(None, dynamic_font_size)
-        text_surface = font.render(str(remaining_seconds), True, text_color)
-        text_rect = text_surface.get_rect(center=(circle_x, circle_y))
-        screen.blit(text_surface, text_rect)
+            frame += 1
+    else:
+        # Display completion message
+        message = "Timer complete! Press 'R' to restart or 'Q' to quit"
+        message_surface = font.render(message, True, TIMER_COLOR)
+        message_rect = message_surface.get_rect(center=(CURRENT_WIDTH // 2, CURRENT_HEIGHT // 2))
+        screen.blit(message_surface, message_rect)
 
     pygame.display.flip()
-    frame += 1
     clock.tick(FPS)
 
 pygame.quit()
 sys.exit(0)
-

@@ -205,10 +205,10 @@ while running:
         pygame.draw.circle(screen, CIRCLE_COLOR, (circle_x, circle_y), circle_radius)
 
         # Display timer
-        remaining_frames = max(0, TOTAL_TIMER_FRAMES - frame)
-        remaining_seconds = remaining_frames // FPS
-        minutes = remaining_seconds // 60
-        seconds = remaining_seconds % 60
+        timer_remaining_frames = max(0, TOTAL_TIMER_FRAMES - frame)
+        timer_remaining_seconds = timer_remaining_frames // FPS
+        minutes = timer_remaining_seconds // 60
+        seconds = timer_remaining_seconds % 60
         timer_text = f"{minutes:02d}:{seconds:02d}"
         timer_surface = font.render(timer_text, True, TIMER_COLOR)
         timer_rect = timer_surface.get_rect(center=(CURRENT_WIDTH // 2, 20))
@@ -218,23 +218,28 @@ while running:
         if DISPLAY_TEXT:
             text_color = BOX_COLOR if DISPLAY_TEXT is True else DISPLAY_TEXT
             current_cycle_frame = frame % TOTAL_CYCLE
+
             if current_cycle_frame < FRAME_TIME1:
-                remaining_frames = FRAME_TIME1 - current_cycle_frame
+                leg_remaining_frames = FRAME_TIME1 - current_cycle_frame
             elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2:
-                remaining_frames = FRAME_TIME1 + FRAME_TIME2 - current_cycle_frame
+                leg_remaining_frames = FRAME_TIME1 + FRAME_TIME2 - current_cycle_frame
             elif current_cycle_frame < FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3:
-                remaining_frames = FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3 - current_cycle_frame
+                leg_remaining_frames = FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3 - current_cycle_frame
             else:
-                remaining_frames = TOTAL_CYCLE - current_cycle_frame
-            remaining_seconds = round(remaining_frames / FPS)
-            
+                leg_remaining_frames = TOTAL_CYCLE - current_cycle_frame
+
+            # Ceiling division keeps the displayed countdown in the range n..1.
+            # This prevents the circle text from ever displaying 0 at the end
+            # of a leg; on the next frame, the next leg starts at its own n.
+            leg_remaining_seconds = max(1, (leg_remaining_frames + FPS - 1) // FPS)
+
             dynamic_font_size = max(10, int(circle_radius * 1.2))
             circle_font = pygame.font.Font(None, dynamic_font_size)
-            text_surface = circle_font.render(str(remaining_seconds), True, text_color)
+            text_surface = circle_font.render(str(leg_remaining_seconds), True, text_color)
             text_rect = text_surface.get_rect(center=(circle_x, circle_y))
             screen.blit(text_surface, text_rect)
 
-        if remaining_frames <= 0:
+        if timer_remaining_frames <= 0:
             timer_complete = True
         else:
             frame += 1

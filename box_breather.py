@@ -9,6 +9,11 @@ pygame.init()
 parser = argparse.ArgumentParser(description="Box Breather")
 parser.add_argument("times", nargs="*", type=int, help="Animation times (1, 2, or 4 integers)")
 parser.add_argument("--config", type=str, help="Path to config file")
+parser.add_argument(
+    "--duration",
+    type=str,
+    help="Timer duration as mm:ss, seconds, or 'infinite' (overrides config file value)",
+)
 args = parser.parse_args()
 
 # Default values
@@ -25,13 +30,30 @@ DISPLAY_TEXT = False
 TIMER_DURATION = 300  # Default 5:00 (300 seconds)
 TIMER_COLOR = (0, 0, 0)  # Black
 
-# Function to convert mm:ss to seconds
-def parse_time_string(time_str):
+# Function to convert timer duration to seconds.
+# Use "infinite", "inf", "forever", "none", or "0" to run indefinitely.
+def parse_timer_duration(duration_str):
+    value = duration_str.strip().lower()
+
+    if value in ("infinite", "inf", "forever", "none", "0"):
+        return None
+
     try:
-        minutes, seconds = map(int, time_str.split(':'))
-        return minutes * 60 + seconds
+        if ":" in value:
+            minutes, seconds = map(int, value.split(':'))
+            if minutes < 0 or seconds < 0:
+                raise ValueError
+            return minutes * 60 + seconds
+
+        total_seconds = int(value)
+        if total_seconds <= 0:
+            raise ValueError
+        return total_seconds
     except ValueError:
-        print(f"Invalid timer format: {time_str}. Expected mm:ss")
+        print(
+            f"Invalid timer duration: {duration_str}. "
+            "Expected mm:ss, seconds, or 'infinite'."
+        )
         sys.exit(1)
 
 # Load from config file if specified
@@ -86,7 +108,7 @@ if args.config:
                             print("Invalid display_text configuration value. Expected 'true', 'false', or an RGB value.")
                             sys.exit(1)
                 elif key == 'timer_duration':
-                    TIMER_DURATION = parse_time_string(value)
+                    TIMER_DURATION = parse_timer_duration(value)
                 elif key == 'timer_color':
                     TIMER_COLOR = tuple(map(int, value.split(',')))
     except Exception as e:
@@ -110,6 +132,14 @@ elif args.times:
         print("Please provide positive integers for seconds")
         sys.exit(1)
 
+# Optional command-line duration override.
+# Examples:
+#   python script.py --duration 5:00
+#   python script.py --duration 300
+#   python script.py --duration infinite
+if args.duration:
+    TIMER_DURATION = parse_timer_duration(args.duration)
+
 # Initial window dimensions
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
@@ -126,7 +156,7 @@ FRAME_TIME3 = LEG3_TIME * FPS
 FRAME_TIME4 = LEG4_TIME * FPS
 TOTAL_CYCLE = FRAME_TIME1 + FRAME_TIME2 + FRAME_TIME3 + FRAME_TIME4
 RESIZE_SPEED = 0.1
-TOTAL_TIMER_FRAMES = TIMER_DURATION * FPS
+TOTAL_TIMER_FRAMES = None if TIMER_DURATION is None else TIMER_DURATION * FPS
 
 # Set up the display
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.RESIZABLE)
@@ -204,15 +234,22 @@ while running:
         )
         pygame.draw.circle(screen, CIRCLE_COLOR, (circle_x, circle_y), circle_radius)
 
-        # Display timer
-        timer_remaining_frames = max(0, TOTAL_TIMER_FRAMES - frame)
-        timer_remaining_seconds = timer_remaining_frames // FPS
-        minutes = timer_remaining_seconds // 60
-        seconds = timer_remaining_seconds % 60
-        timer_text = f"{minutes:02d}:{seconds:02d}"
-        timer_surface = font.render(timer_text, True, TIMER_COLOR)
-        timer_rect = timer_surface.get_rect(center=(CURRENT_WIDTH // 2, 20))
-        screen.blit(timer_surface, timer_rect)
+        # Display timer only for finite durations.
+        # In infinite mode, there is no countdown to show. Avoid rendering the
+        # Unicode infinity symbol here because Pygame's default font may not
+        # support it and can display an empty square/tofu glyph instead.
+        if TOTAL_TIMER_FRAMES is None:
+            timer_remaining_frames = None
+        else:
+            timer_remaining_frames = max(0, TOTAL_TIMER_FRAMES - frame)
+            timer_remaining_seconds = timer_remaining_frames // FPS
+            minutes = timer_remaining_seconds // 60
+            seconds = timer_remaining_seconds % 60
+            timer_text = f"{minutes:02d}:{seconds:02d}"
+
+            timer_surface = font.render(timer_text, True, TIMER_COLOR)
+            timer_rect = timer_surface.get_rect(center=(CURRENT_WIDTH // 2, 20))
+            screen.blit(timer_surface, timer_rect)
 
         # Existing circle text display (if enabled)
         if DISPLAY_TEXT:
@@ -239,7 +276,9 @@ while running:
             text_rect = text_surface.get_rect(center=(circle_x, circle_y))
             screen.blit(text_surface, text_rect)
 
-        if timer_remaining_frames <= 0:
+        if TOTAL_TIMER_FRAMES is None:
+            frame += 1
+        elif timer_remaining_frames <= 0:
             timer_complete = True
         else:
             frame += 1
